@@ -1,0 +1,97 @@
+{
+  "$schema": "https://schema.freqtrade.io/schema.json",
+  "bot_name": "pricepilot-ai",
+  "strategy": "BinanceSpotLowFrequencyStrategy",
+  "max_open_trades": 2,
+  "stake_currency": "USDT",
+  "stake_amount": 75,
+  "tradable_balance_ratio": 0.8,
+  "fiat_display_currency": "USD",
+  "timeframe": "1h",
+  "cancel_open_orders_on_exit": false,
+  "dry_run": true,
+  "dry_run_wallet": {
+    "USDT": 1000
+  },
+  "db_url": "sqlite:///user_data/tradesv3.dryrun.sqlite",
+  "unfilledtimeout": {
+    "entry": 10,
+    "exit": 10,
+    "exit_timeout_count": 0,
+    "unit": "minutes"
+  },
+  "entry_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "exit_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "exchange": {
+    "name": "binance",
+    "key": "",
+    "secret": "",
+    "ccxt_config": {
+      "enableRateLimit": true,
+      "options": {
+        "defaultType": "spot"
+      }
+    },
+    "ccxt_async_config": {
+      "enableRateLimit": true,
+      "options": {
+        "defaultType": "spot"
+      }
+    },
+    "pair_whitelist": [
+      "BTC/USDT",
+      "ETH/USDT",
+      "SOL/USDT",
+      "XRP/USDT",
+      "ADA/USDT"
+    ],
+    "pair_blacklist": [
+      "BNB/USDT"
+    ]
+  },
+  "pairlists": [
+    {
+      "method": "StaticPairList"
+    }
+  ],
+  "order_types": {
+    "entry": "limit",
+    "exit": "limit",
+    "emergency_exit": "market",
+    "force_entry": "market",
+    "force_exit": "market",
+    "stoploss": "market",
+    "stoploss_on_exchange": true,
+    "stoploss_on_exchange_interval": 60,
+    "stoploss_on_exchange_limit_ratio": 0.99
+  },
+  "order_time_in_force": {
+    "entry": "GTC",
+    "exit": "GTC"
+  },
+  "api_server": {
+    "enabled": true,
+    "listen_ip_address": "127.0.0.1",
+    "listen_port": 8080,
+    "verbosity": "error",
+    "enable_openapi": false,
+    "jwt_secret_key": "CHANGE_ME_TO_A_LONG_RANDOM_VALUE",
+    "CORS_origins": [],
+    "username": "pricepilot",
+    "password": "CHANGE_ME_NOW",
+    "ws_token": "CHANGE_ME_TOO"
+  },
+  "internals": {
+    "process_throttle_secs": 5
+  },
+  "dataformat_ohlcv": "feather",
+  "dataformat_trades": "feather"
+}

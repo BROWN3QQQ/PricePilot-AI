@@ -1,0 +1,46 @@
+name: pricepilot-ai
+
+x-freqtrade-common: &freqtrade-common
+  image: freqtradeorg/freqtrade:stable
+  restart: unless-stopped
+  working_dir: /freqtrade
+  volumes:
+    - ../config:/freqtrade/config
+    - ../user_data:/freqtrade/user_data
+  environment:
+    TZ: ${TZ:-Asia/Shanghai}
+
+services:
+  freqtrade-dryrun:
+    <<: *freqtrade-common
+    profiles: ["dryrun"]
+    command:
+      - trade
+      - --logfile
+      - /freqtrade/user_data/logs/dryrun.log
+      - --config
+      - /freqtrade/config/base.spot.json
+      - --config
+      - /freqtrade/config/dryrun.json
+      - --strategy
+      - BinanceSpotLowFrequencyStrategy
+    ports:
+      - "127.0.0.1:8080:8080"
+
+  freqtrade-live:
+    <<: *freqtrade-common
+    profiles: ["live"]
+    command:
+      - trade
+      - --logfile
+      - /freqtrade/user_data/logs/live.log
+      - --config
+      - /freqtrade/config/base.spot.json
+      - --config
+      - /freqtrade/config/live.json
+      - --config
+      - /freqtrade/config/private.live.json
+      - --strategy
+      - BinanceSpotLowFrequencyStrategy
+    ports:
+      - "127.0.0.1:8081:8080"

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.freqtrade.io/schema.json",
+  "dry_run": true,
+  "db_url": "sqlite:///user_data/tradesv3.dryrun.sqlite",
+  "dry_run_wallet": {
+    "USDT": 1000
+  },
+  "api_server": {
+    "listen_port": 8080
+  }
+}
