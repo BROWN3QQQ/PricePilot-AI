@@ -36,6 +36,7 @@ If your real account is on `Binance US`, change `exchange.name` from `binance` t
 - [scripts](/E:/Code Repo/PricePilot AI/scripts)
 - [docs/runbooks](/E:/Code Repo/PricePilot AI/docs/runbooks)
 - [docs/research-workflow.md](/E:/Code Repo/PricePilot AI/docs/research-workflow.md)
+- [docs/repository-files.md](/E:/Code Repo/PricePilot AI/docs/repository-files.md)
 
 ## Prerequisites
 
@@ -193,3 +194,10 @@ Live API / UI is bound to:
 - Binance Spot Testnet exists, but this scaffold defaults to dry-run because that is the cleaner first validation stage for Freqtrade.
 - Hyperopt should be treated as model selection support, not as proof that a parameter set is robust.
 - No profitability claim is implied by this project structure.
+
+## Branching
+
+- `main`: stable baseline branch for reviewed work
+- `dev`: integration branch for ongoing implementation and experiments
+
+Use [docs/repository-files.md](/E:/Code Repo/PricePilot AI/docs/repository-files.md) as the file-level reference for the repository.

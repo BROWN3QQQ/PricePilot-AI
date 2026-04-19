@@ -1,4 +1,5 @@
 .idea/
+.venv/
 .env
 .env.local
 config/private.live.json
@@ -21,3 +22,4 @@ reports/daily/*
 !reports/daily/.gitkeep
 scripts/__pycache__/
 user_data/strategies/__pycache__/
+*.pyc
