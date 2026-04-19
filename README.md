@@ -37,6 +37,7 @@ If your real account is on `Binance US`, change `exchange.name` from `binance` t
 - [docs/runbooks](/E:/Code Repo/PricePilot AI/docs/runbooks)
 - [docs/research-workflow.md](/E:/Code Repo/PricePilot AI/docs/research-workflow.md)
 - [docs/repository-files.md](/E:/Code Repo/PricePilot AI/docs/repository-files.md)
+- [docs/git-workflow.md](/E:/Code Repo/PricePilot AI/docs/git-workflow.md)
 
 ## Prerequisites
 
@@ -199,5 +200,7 @@ Live API / UI is bound to:
 
 - `main`: stable baseline branch for reviewed work
 - `dev`: integration branch for ongoing implementation and experiments
+
+Follow [docs/git-workflow.md](/E:/Code Repo/PricePilot AI/docs/git-workflow.md) as the fixed branch workflow for this repository.
 
 Use [docs/repository-files.md](/E:/Code Repo/PricePilot AI/docs/repository-files.md) as the file-level reference for the repository.

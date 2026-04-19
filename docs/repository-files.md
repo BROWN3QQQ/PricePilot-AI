@@ -18,6 +18,7 @@ This document describes the purpose of every tracked file in the repository and 
 ## Docs
 
 - [docs/research-workflow.md](/E:/Code Repo/PricePilot AI/docs/research-workflow.md): research and validation workflow for data download, backtesting, hyperopt, bias checks, and dry-run review.
+- [docs/git-workflow.md](/E:/Code Repo/PricePilot AI/docs/git-workflow.md): fixed branch policy for `dev` and `main`, including daily development, release, and hotfix flow.
 - [docs/repository-files.md](/E:/Code Repo/PricePilot AI/docs/repository-files.md): file-level reference for the entire tracked repository.
 
 ## Runbooks
