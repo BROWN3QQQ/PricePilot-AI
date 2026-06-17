@@ -2,20 +2,22 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import freqtrade.vendor.qtpylib.indicators as qtpylib
-import talib.abstract as ta
 from pandas import DataFrame
 
 from freqtrade.persistence import Trade
 from freqtrade.strategy import BooleanParameter, DecimalParameter, IStrategy, IntParameter, informative
 
+from price_action_core import compute_price_action_indicators
+
 
 class BinanceSpotLowFrequencyStrategy(IStrategy):
+    """Long-only strategy whose trading signals are derived only from price action."""
+
     INTERFACE_VERSION = 3
 
     can_short = False
     timeframe = "1h"
-    startup_candle_count = 800
+    startup_candle_count = 300
     process_only_new_candles = True
     use_exit_signal = True
     exit_profit_only = False
@@ -23,29 +25,27 @@ class BinanceSpotLowFrequencyStrategy(IStrategy):
     position_adjustment_enable = False
 
     minimal_roi = {
-        "0": 0.08,
-        "360": 0.045,
-        "1440": 0.02,
-        "2880": 0.0,
+        "0": 0.10,
+        "720": 0.05,
+        "2160": 0.02,
+        "4320": 0.0,
     }
 
     stoploss = -0.10
     trailing_stop = True
-    trailing_stop_positive = 0.015
-    trailing_stop_positive_offset = 0.03
+    trailing_stop_positive = 0.02
+    trailing_stop_positive_offset = 0.04
     trailing_only_offset_is_reached = True
 
-    buy_rsi_fast = IntParameter(35, 55, default=44, space="buy")
-    buy_rsi_slow = IntParameter(45, 68, default=57, space="buy")
-    buy_adx = IntParameter(16, 32, default=21, space="buy")
-    buy_pullback_atr = DecimalParameter(0.10, 1.30, decimals=2, default=0.45, space="buy")
-    buy_volume_factor = DecimalParameter(0.80, 1.60, decimals=2, default=1.00, space="buy")
-    use_btc_guard = BooleanParameter(default=True, space="buy")
-    use_4h_guard = BooleanParameter(default=True, space="buy")
+    buy_score_min = IntParameter(55, 80, default=60, space="buy")
+    buy_risk_max = IntParameter(35, 65, default=55, space="buy")
+    buy_min_risk_reward = DecimalParameter(1.3, 3.0, decimals=1, default=1.5, space="buy")
+    buy_min_volume_ratio = DecimalParameter(0.8, 1.5, decimals=1, default=0.9, space="buy")
+    use_btc_structure_guard = BooleanParameter(default=True, space="buy")
+    use_pair_4h_structure_guard = BooleanParameter(default=True, space="buy")
 
-    sell_rsi = IntParameter(35, 55, default=44, space="sell")
-    sell_adx = IntParameter(10, 24, default=16, space="sell")
-    sell_profit_rsi = IntParameter(68, 84, default=76, space="sell")
+    sell_score_min = IntParameter(40, 75, default=50, space="sell")
+    sell_risk_min = IntParameter(65, 90, default=75, space="sell")
 
     cooldown_lookback = IntParameter(2, 8, default=4, space="protection")
     stop_duration = IntParameter(4, 16, default=8, space="protection")
@@ -79,7 +79,6 @@ class BinanceSpotLowFrequencyStrategy(IStrategy):
                 "stop_duration_candles": int(self.cooldown_lookback.value),
             }
         ]
-
         if self.use_stop_protection.value:
             protections.append(
                 {
@@ -91,7 +90,6 @@ class BinanceSpotLowFrequencyStrategy(IStrategy):
                     "only_per_pair": False,
                 }
             )
-
         protections.append(
             {
                 "method": "MaxDrawdown",
@@ -101,129 +99,82 @@ class BinanceSpotLowFrequencyStrategy(IStrategy):
                 "max_allowed_drawdown": float(self.max_allowed_drawdown.value),
             }
         )
-
         return protections
 
     @informative("4h")
     def populate_indicators_4h(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe["ema_fast"] = ta.EMA(dataframe, timeperiod=20)
-        dataframe["ema_mid"] = ta.EMA(dataframe, timeperiod=50)
-        dataframe["ema_slow"] = ta.EMA(dataframe, timeperiod=200)
-        dataframe["rsi"] = ta.RSI(dataframe, timeperiod=14)
-        return dataframe
+        return compute_price_action_indicators(dataframe)
 
     @informative("4h", "BTC/{stake}")
     def populate_indicators_btc_4h(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe["ema_fast"] = ta.EMA(dataframe, timeperiod=20)
-        dataframe["ema_slow"] = ta.EMA(dataframe, timeperiod=200)
-        dataframe["rsi"] = ta.RSI(dataframe, timeperiod=14)
-        return dataframe
+        return compute_price_action_indicators(dataframe)
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe["ema_fast"] = ta.EMA(dataframe, timeperiod=20)
-        dataframe["ema_mid"] = ta.EMA(dataframe, timeperiod=50)
-        dataframe["ema_slow"] = ta.EMA(dataframe, timeperiod=200)
-        dataframe["rsi"] = ta.RSI(dataframe, timeperiod=14)
-        dataframe["rsi_fast"] = ta.RSI(dataframe, timeperiod=6)
-        dataframe["adx"] = ta.ADX(dataframe, timeperiod=14)
-        dataframe["atr"] = ta.ATR(dataframe, timeperiod=14)
-        dataframe["atr_pct"] = dataframe["atr"] / dataframe["close"]
-        dataframe["volume_mean_24"] = dataframe["volume"].rolling(24).mean()
-
-        bollinger = qtpylib.bollinger_bands(qtpylib.typical_price(dataframe), window=20, stds=2)
-        dataframe["bb_lowerband"] = bollinger["lower"]
-        dataframe["bb_middleband"] = bollinger["mid"]
-        dataframe["bb_upperband"] = bollinger["upper"]
+        dataframe = compute_price_action_indicators(dataframe)
 
         stake = self.config["stake_currency"].lower()
-        btc_columns = [
-            f"btc_{stake}_ema_fast_4h",
-            f"btc_{stake}_ema_slow_4h",
-            f"btc_{stake}_rsi_4h",
-        ]
-
-        for column in btc_columns:
+        defaults = {
+            "pa_structure_4h": "range",
+            "pa_bos_down_4h": False,
+            "pa_bearish_sweep_4h": False,
+            f"btc_{stake}_pa_structure_4h": "range",
+            f"btc_{stake}_pa_bos_down_4h": False,
+            f"btc_{stake}_pa_bearish_sweep_4h": False,
+        }
+        for column, default in defaults.items():
             if column not in dataframe.columns:
-                dataframe[column] = 0.0
-
-        for column in ["ema_fast_4h", "ema_mid_4h", "ema_slow_4h", "rsi_4h"]:
-            if column not in dataframe.columns:
-                dataframe[column] = 0.0
-
+                dataframe[column] = default
         return dataframe
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         stake = self.config["stake_currency"].lower()
-        btc_fast = f"btc_{stake}_ema_fast_4h"
-        btc_slow = f"btc_{stake}_ema_slow_4h"
-        btc_rsi = f"btc_{stake}_rsi_4h"
-
-        btc_guard = (
-            (dataframe[btc_fast] > dataframe[btc_slow]) &
-            (dataframe[btc_rsi] > 50)
-        )
+        btc_structure = f"btc_{stake}_pa_structure_4h"
+        btc_breakdown = f"btc_{stake}_pa_bos_down_4h"
+        btc_sweep = f"btc_{stake}_pa_bearish_sweep_4h"
 
         pair_4h_guard = (
-            (dataframe["ema_fast_4h"] > dataframe["ema_mid_4h"]) &
-            (dataframe["ema_mid_4h"] > dataframe["ema_slow_4h"]) &
-            (dataframe["rsi_4h"] > 50)
+            (dataframe["pa_structure_4h"] != "bearish")
+            & (~dataframe["pa_bos_down_4h"])
+            & (~dataframe["pa_bearish_sweep_4h"])
         )
-
-        rsi_rebound = (
-            (dataframe["rsi_fast"] > self.buy_rsi_fast.value) &
-            (dataframe["rsi_fast"].shift(1) <= self.buy_rsi_fast.value)
+        btc_4h_guard = (
+            (dataframe[btc_structure] != "bearish")
+            & (~dataframe[btc_breakdown])
+            & (~dataframe[btc_sweep])
         )
-
-        pullback_zone = (
-            (dataframe["close"] >= dataframe["ema_fast"] - (dataframe["atr"] * self.buy_pullback_atr.value)) &
-            (dataframe["close"] <= dataframe["ema_fast"]) &
-            (dataframe["close"] > dataframe["ema_mid"]) &
-            (dataframe["close"] > dataframe["bb_middleband"])
-        )
-
         conditions = (
-            (dataframe["volume"] > 0) &
-            (dataframe["volume"] > dataframe["volume_mean_24"] * self.buy_volume_factor.value) &
-            (dataframe["ema_fast"] > dataframe["ema_mid"]) &
-            (dataframe["ema_mid"] > dataframe["ema_slow"]) &
-            (dataframe["close"] > dataframe["ema_slow"]) &
-            (dataframe["adx"] > self.buy_adx.value) &
-            (dataframe["rsi"] < self.buy_rsi_slow.value) &
-            (dataframe["rsi"] > 46) &
-            pullback_zone &
-            rsi_rebound &
-            (dataframe["atr_pct"] < 0.06)
+            (dataframe["volume"] > 0)
+            & (dataframe["pa_volume_ratio"] >= self.buy_min_volume_ratio.value)
+            & (dataframe["pa_action"] == "BUY")
+            & (dataframe["pa_buy_score"] >= self.buy_score_min.value)
+            & (dataframe["pa_risk_score"] <= self.buy_risk_max.value)
+            & (dataframe["pa_risk_reward"] >= self.buy_min_risk_reward.value)
+            & (~dataframe["pa_bearish_sweep"])
+            & (~dataframe["pa_bos_down"])
         )
-
-        if self.use_4h_guard.value:
+        if self.use_pair_4h_structure_guard.value:
             conditions &= pair_4h_guard
-        if self.use_btc_guard.value:
-            conditions &= btc_guard
+        if self.use_btc_structure_guard.value:
+            conditions &= btc_4h_guard
 
-        dataframe.loc[conditions, ["enter_long", "enter_tag"]] = (1, "trend_pullback_1h")
+        dataframe.loc[conditions, "enter_long"] = 1
+        dataframe.loc[conditions, "enter_tag"] = dataframe.loc[conditions, "pa_setup"]
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        stake = self.config["stake_currency"].lower()
-        btc_fast = f"btc_{stake}_ema_fast_4h"
-        btc_slow = f"btc_{stake}_ema_slow_4h"
-
         dataframe.loc[
             (
-                (dataframe["volume"] > 0) &
-                (
-                    (
-                        (dataframe["ema_fast"] < dataframe["ema_mid"]) &
-                        (dataframe["adx"] < self.sell_adx.value)
-                    ) |
-                    (dataframe["rsi"] < self.sell_rsi.value) |
-                    (dataframe["close"] < dataframe["ema_mid"]) |
-                    (dataframe[btc_fast] < dataframe[btc_slow])
+                (dataframe["volume"] > 0)
+                & (
+                    (dataframe["pa_action"] == "EXIT")
+                    | (dataframe["pa_sell_score"] >= self.sell_score_min.value)
+                    | (dataframe["pa_risk_score"] >= self.sell_risk_min.value)
+                    | dataframe["pa_bos_down"]
+                    | dataframe["pa_choch_down"]
                 )
             ),
             ["exit_long", "exit_tag"],
-        ] = (1, "trend_break_1h")
-
+        ] = (1, "price_action_invalidation")
         return dataframe
 
     def custom_stake_amount(
@@ -247,13 +198,22 @@ class BinanceSpotLowFrequencyStrategy(IStrategy):
             return proposed_stake
 
         current_candle = dataframe.iloc[-1].squeeze()
-        atr_pct = float(current_candle.get("atr_pct", 0.0))
-        stake = proposed_stake
+        risk_score = float(current_candle.get("pa_risk_score", 100.0))
+        volatility_pct = float(current_candle.get("pa_volatility_pct", 0.0))
+        structural_stop = float(current_candle.get("pa_invalidation_price", 0.0))
+        stop_distance_pct = (
+            max((current_rate - structural_stop) / current_rate, 0.0)
+            if current_rate > 0 and structural_stop > 0
+            else 0.10
+        )
 
-        if atr_pct >= 0.05:
-            stake = proposed_stake * 0.60
-        elif atr_pct >= 0.035:
-            stake = proposed_stake * 0.80
+        stake = proposed_stake
+        if risk_score >= 50:
+            stake *= 0.70
+        if volatility_pct >= 0.04:
+            stake *= 0.75
+        if stop_distance_pct > 0.08:
+            stake *= 0.60
 
         if min_stake is not None:
             stake = max(stake, min_stake)
@@ -276,19 +236,12 @@ class BinanceSpotLowFrequencyStrategy(IStrategy):
             return None
 
         current_candle = dataframe.iloc[-1].squeeze()
-        if current_profit > 0.04 and float(current_candle.get("rsi", 0.0)) >= self.sell_profit_rsi.value:
-            return "profit_rsi_exhaustion"
-
-        stake = self.config["stake_currency"].lower()
-        btc_fast = f"btc_{stake}_ema_fast_4h"
-        btc_slow = f"btc_{stake}_ema_slow_4h"
-        btc_rsi = f"btc_{stake}_rsi_4h"
-
-        if (
-            current_profit > 0.01 and
-            float(current_candle.get(btc_fast, 0.0)) < float(current_candle.get(btc_slow, 0.0)) and
-            float(current_candle.get(btc_rsi, 0.0)) < 48
-        ):
-            return "btc_risk_off"
-
+        if bool(current_candle.get("pa_bearish_sweep", False)):
+            return "bearish_liquidity_sweep"
+        if bool(current_candle.get("pa_choch_down", False)):
+            return "bearish_change_of_character"
+        if bool(current_candle.get("pa_bos_down", False)):
+            return "structural_support_break"
+        if float(current_candle.get("pa_risk_score", 0.0)) >= 85:
+            return "price_action_risk_off"
         return None

@@ -12,7 +12,9 @@ $requiredDirs = @(
     (Join-Path $repoRoot "user_data\hyperopt_results"),
     (Join-Path $repoRoot "reports\backtests"),
     (Join-Path $repoRoot "reports\hyperopt"),
-    (Join-Path $repoRoot "reports\daily")
+    (Join-Path $repoRoot "reports\daily"),
+    (Join-Path $repoRoot "reports\agent"),
+    (Join-Path $repoRoot "reports\experiments")
 )
 
 foreach ($path in $requiredDirs) {

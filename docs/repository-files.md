@@ -1,74 +1,50 @@
 # Repository Files
 
-This document describes the purpose of every tracked file in the repository and the main local-only directories around it.
+## 核心文档
 
-## Top Level
+- `GOAL.md`：已确认目标、严格价格行为定义和安全边界。
+- `README.md`：项目入口、运行方式、实验结果和作业交付说明。
+- `ARCHITECTURE.md`：观察、Agent、风险门禁和执行架构。
+- `docs/assignment-report.md`：中文人工智能实践项目报告。
+- `reports/course-project-report.md`：课程项目详细报告的提交与查看入口。
+- `docs/research-workflow.md`：测试、消融、Freqtrade 和 Testnet 验证流程。
 
-- [README.md](/E:/Code Repo/PricePilot AI/README.md): primary project entry point, setup guide, workflow summary, and branch policy.
-- [ARCHITECTURE.md](/E:/Code Repo/PricePilot AI/ARCHITECTURE.md): system architecture, risk model, deployment model, and operational design for the Freqtrade-based trading stack.
-- [.gitignore](/E:/Code Repo/PricePilot AI/.gitignore): repository ignore policy for secrets, local runtime data, generated reports, caches, IDE files, and local virtual environments.
+## 严格价格行为策略
 
-## Config
+- `user_data/strategies/price_action_core.py`：摆动点、结构、BOS/CHoCH、流动性扫荡、蜡烛确认和结构化交易计划。
+- `user_data/strategies/BinanceSpotLowFrequencyStrategy.py`：严格价格行为 Freqtrade 主策略。
+- `user_data/strategies/SimpleSpotStrategy.py`：保留的传统指标基线，不属于严格价格行为主策略。
 
-- [config/base.spot.json](/E:/Code Repo/PricePilot AI/config/base.spot.json): shared base configuration for Binance Spot, bot behavior, pricing, pairlist, API server, and default runtime settings.
-- [config/dryrun.json](/E:/Code Repo/PricePilot AI/config/dryrun.json): dry-run overrides including simulated wallet and dry-run database path.
-- [config/live.json](/E:/Code Repo/PricePilot AI/config/live.json): live trading overrides including live database path and tighter live stake amount.
-- [config/private.live.template.json](/E:/Code Repo/PricePilot AI/config/private.live.template.json): template for the uncommitted live secret config containing exchange keys and API/UI credentials.
+## Agent 与执行
 
-## Docs
+- `scripts/agent_advisor.py`：确定性 Advisor、基础模型 Agent 和风险门禁。
+- `scripts/price_action_agent.py`：分析、决策 ID、重复执行拦截与订单流程。
+- `scripts/binance_testnet_client.py`：Binance Spot Testnet REST 客户端。
+- `scripts/run_price_action_agent.ps1`：Agent PowerShell 入口。
+- `scripts/evaluate_model_agent.py`：批量比较基础模型 Agent 与确定性 Advisor。
+- `scripts/evaluate_model_agent.ps1`：基础模型评测 PowerShell 入口。
+- `docs/runbooks/binance-testnet-simulation.md`：Testnet 运行手册。
 
-- [docs/research-workflow.md](/E:/Code Repo/PricePilot AI/docs/research-workflow.md): research and validation workflow for data download, backtesting, hyperopt, bias checks, and dry-run review.
-- [docs/git-workflow.md](/E:/Code Repo/PricePilot AI/docs/git-workflow.md): fixed branch policy for `dev` and `main`, including daily development, release, and hotfix flow.
-- [docs/repository-files.md](/E:/Code Repo/PricePilot AI/docs/repository-files.md): file-level reference for the entire tracked repository.
+## 实验与测试
 
-## Runbooks
+- `scripts/run_price_action_experiment.py`：独立走步模拟和消融实验。
+- `scripts/run_price_action_experiment.ps1`：实验 PowerShell 入口。
+- `tests/`：标准库自动化测试。
+- `reports/experiments/`：生成的消融实验结果。
 
-- [docs/runbooks/deployment-checklist.md](/E:/Code Repo/PricePilot AI/docs/runbooks/deployment-checklist.md): pre-dry-run and pre-live checklist, plus go-live sequence.
-- [docs/runbooks/incident-response.md](/E:/Code Repo/PricePilot AI/docs/runbooks/incident-response.md): incident handling steps for key exposure, order failures, time drift, and stoploss cascades.
+## Freqtrade 工作流
 
-## Infrastructure
+- `config/`：基础、Dry-run、Live 和私有配置模板。
+- `infra/docker-compose.yml`：Dry-run 与 Live 容器定义。
+- `scripts/download_data.ps1`：下载历史数据。
+- `scripts/run_backtest.ps1`：运行回测并生成报告。
+- `scripts/run_hyperopt.ps1`：受约束参数优化。
+- `scripts/validate_strategy.ps1`：回测、lookahead 和 recursive analysis。
+- `scripts/run_dry.ps1`：启动 Dry-run。
 
-- [infra/.env.example](/E:/Code Repo/PricePilot AI/infra/.env.example): environment variable example for Docker Compose execution.
-- [infra/docker-compose.yml](/E:/Code Repo/PricePilot AI/infra/docker-compose.yml): Docker Compose definition for dry-run and live Freqtrade services.
+## 作业交付
 
-## Reports
-
-- [reports/backtests/.gitkeep](/E:/Code Repo/PricePilot AI/reports/backtests/.gitkeep): keeps the committed backtest report directory present in the repository.
-- [reports/daily/.gitkeep](/E:/Code Repo/PricePilot AI/reports/daily/.gitkeep): keeps the committed daily report directory present in the repository.
-- [reports/hyperopt/.gitkeep](/E:/Code Repo/PricePilot AI/reports/hyperopt/.gitkeep): keeps the committed hyperopt report directory present in the repository.
-
-## Scripts
-
-- [scripts/bootstrap.ps1](/E:/Code Repo/PricePilot AI/scripts/bootstrap.ps1): creates local runtime directories and pulls the Freqtrade Docker image.
-- [scripts/download_data.ps1](/E:/Code Repo/PricePilot AI/scripts/download_data.ps1): downloads historical market data for the configured Binance Spot pairs and timeframes.
-- [scripts/run_backtest.ps1](/E:/Code Repo/PricePilot AI/scripts/run_backtest.ps1): runs Freqtrade backtesting and writes raw and rendered backtest reports.
-- [scripts/run_hyperopt.ps1](/E:/Code Repo/PricePilot AI/scripts/run_hyperopt.ps1): runs constrained hyperparameter optimization and writes hyperopt reports.
-- [scripts/validate_strategy.ps1](/E:/Code Repo/PricePilot AI/scripts/validate_strategy.ps1): runs backtest validation, lookahead-analysis, and recursive-analysis.
-- [scripts/run_research_cycle.ps1](/E:/Code Repo/PricePilot AI/scripts/run_research_cycle.ps1): orchestrates the full research flow from data download through validation.
-- [scripts/run_dry.ps1](/E:/Code Repo/PricePilot AI/scripts/run_dry.ps1): starts the dry-run trading service with Docker Compose.
-- [scripts/run_live.ps1](/E:/Code Repo/PricePilot AI/scripts/run_live.ps1): starts the live trading service after checking that the private live config exists.
-- [scripts/daily_report.ps1](/E:/Code Repo/PricePilot AI/scripts/daily_report.ps1): generates markdown and JSON daily reports from the dry-run or live trade database.
-- [scripts/backup_db.ps1](/E:/Code Repo/PricePilot AI/scripts/backup_db.ps1): backs up SQLite trade databases and the active JSON configs into a timestamped folder.
-- [scripts/render_backtest_report.py](/E:/Code Repo/PricePilot AI/scripts/render_backtest_report.py): converts raw backtest console output into a markdown summary and captures recent artifacts.
-- [scripts/render_hyperopt_report.py](/E:/Code Repo/PricePilot AI/scripts/render_hyperopt_report.py): converts raw hyperopt output into a markdown summary and extracts simple JSON snapshots.
-- [scripts/render_daily_report.py](/E:/Code Repo/PricePilot AI/scripts/render_daily_report.py): reads the Freqtrade SQLite database and renders daily JSON and markdown summaries.
-
-## User Data
-
-- [user_data/backtest_results/.gitkeep](/E:/Code Repo/PricePilot AI/user_data/backtest_results/.gitkeep): keeps the backtest artifact directory present in the repository.
-- [user_data/hyperopt_results/.gitkeep](/E:/Code Repo/PricePilot AI/user_data/hyperopt_results/.gitkeep): keeps the hyperopt artifact directory present in the repository.
-- [user_data/logs/.gitkeep](/E:/Code Repo/PricePilot AI/user_data/logs/.gitkeep): keeps the runtime log directory present in the repository.
-
-## Strategies
-
-- [user_data/strategies/BinanceSpotLowFrequencyStrategy.py](/E:/Code Repo/PricePilot AI/user_data/strategies/BinanceSpotLowFrequencyStrategy.py): primary low-frequency Binance Spot strategy with multi-timeframe trend filters, BTC market guard, protections, hyperopt parameters, dynamic stake sizing, and custom exits.
-- [user_data/strategies/SimpleSpotStrategy.py](/E:/Code Repo/PricePilot AI/user_data/strategies/SimpleSpotStrategy.py): earlier baseline example strategy retained as a simple reference implementation.
-
-## Local-Only Directories
-
-- `.venv/`: local Python virtual environment for helper scripts. This is ignored and should not be committed.
-- `.idea/`: IDE project metadata. This is ignored and should not be committed.
-- `user_data/data/`: downloaded market data cache. This is ignored because it is generated locally and can be very large.
-- `user_data/*.sqlite`: dry-run and live trade databases. These are ignored because they are runtime state.
-- `reports/backtests/*`, `reports/hyperopt/*`, `reports/daily/*`: generated research and operations reports. Only the directory placeholders are tracked.
-- `config/private.live.json`: live secret configuration. This must remain local and uncommitted.
+- `scripts/package_assignment.ps1`：生成作业压缩包，排除私有配置、密钥、执行账本和缓存。
+- `reports/backtests/`：Freqtrade 回测报告。
+- `reports/agent/`：Agent 分析报告。
+- `reports/experiments/`：消融实验结果。

@@ -1,206 +1,146 @@
 # PricePilot AI
 
-PricePilot AI is a conservative `Freqtrade`-based Binance Spot trading project.
+PricePilot AI 是一个严格价格行为学驱动的 AI Agent 量化交易系统，也是人工智能实践课程作业项目。
 
-This repository is set up for the workflow:
+它从 Binance OHLCV 原始数据识别摆动结构、BOS/CHoCH、流动性扫荡、拒绝与吞没形态，生成结构化交易计划；基础模型 Agent 只能复核、解释或否决候选；最终由确定性风险门禁决定是否允许 Binance Spot Testnet 模拟买入。
 
-1. Download market data
-2. Backtest and generate reports
-3. Run hyperparameter optimization
-4. Validate against lookahead and recursive bias
-5. Run dry-run
-6. Generate daily trading reports
-7. Promote to limited live trading
+## 核心约束
 
-The implementation intentionally stays close to official Freqtrade behavior instead of building a custom order engine.
+- 主策略交易信号不使用 EMA、RSI、MACD、ADX、Bollinger Bands 等传统指标。
+- 成交量和真实波动范围只作为参与度与风险上下文。
+- Agent 不得在价格行为策略未批准时凭空生成买入。
+- 默认只分析；自动订单仅面向 Binance Spot Testnet。
+- 不使用真实资金、杠杆、期货、马丁格尔或网格加仓。
 
-## Scope
+完整目标见 [GOAL.md](/E:/Code Repo/PricePilot AI/GOAL.md)，架构见 [ARCHITECTURE.md](/E:/Code Repo/PricePilot AI/ARCHITECTURE.md)。
 
-- Exchange: `binance` spot
-- Engine: `Freqtrade stable`
-- Strategy: `BinanceSpotLowFrequencyStrategy`
-- Deployment: Docker Compose
-- Risk posture: low-frequency, low-concurrency, exchange stoploss, protections enabled
+## 系统组成
 
-If your real account is on `Binance US`, change `exchange.name` from `binance` to `binanceus` in the config files before use.
+- `price_action_core.py`：严格价格行为特征、交易计划与独立蜡烛分析。
+- `BinanceSpotLowFrequencyStrategy.py`：无传统指标信号的 Freqtrade 策略。
+- `agent_advisor.py`：确定性 Advisor 与 OpenAI-compatible 基础模型 Agent。
+- `price_action_agent.py`：分析、风险审批、幂等控制与 Testnet 订单流程。
+- `binance_testnet_client.py`：行情、账户、订单、查询和取消接口。
+- `run_price_action_experiment.py`：走步模拟与消融实验。
+- `tests/`：安全边界和核心行为测试。
 
-## Repository Layout
+## 快速验证
 
-- [ARCHITECTURE.md](/E:/Code Repo/PricePilot AI/ARCHITECTURE.md)
-- [config/base.spot.json](/E:/Code Repo/PricePilot AI/config/base.spot.json)
-- [config/dryrun.json](/E:/Code Repo/PricePilot AI/config/dryrun.json)
-- [config/live.json](/E:/Code Repo/PricePilot AI/config/live.json)
-- [config/private.live.template.json](/E:/Code Repo/PricePilot AI/config/private.live.template.json)
-- [infra/docker-compose.yml](/E:/Code Repo/PricePilot AI/infra/docker-compose.yml)
-- [user_data/strategies/BinanceSpotLowFrequencyStrategy.py](/E:/Code Repo/PricePilot AI/user_data/strategies/BinanceSpotLowFrequencyStrategy.py)
-- [scripts](/E:/Code Repo/PricePilot AI/scripts)
-- [docs/runbooks](/E:/Code Repo/PricePilot AI/docs/runbooks)
-- [docs/research-workflow.md](/E:/Code Repo/PricePilot AI/docs/research-workflow.md)
-- [docs/repository-files.md](/E:/Code Repo/PricePilot AI/docs/repository-files.md)
-- [docs/git-workflow.md](/E:/Code Repo/PricePilot AI/docs/git-workflow.md)
+### 1. 运行自动化测试
 
-## Prerequisites
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
 
-- Docker Desktop or Docker Engine with Compose
-- A Binance Spot account for live trading
-- A dedicated API key for the bot
+### 2. 运行价格行为消融实验
 
-The local Python virtual environment in this repo is used only for local helper scripts. Trading execution is expected to run in Docker.
+默认使用 Binance 公开行情，执行 BTCUSDT 与 ETHUSDT 的 1h 走步模拟：
 
-## Setup
+```powershell
+.\scripts\run_price_action_experiment.ps1
+```
 
-### 1. Bootstrap
+结果写入 `reports/experiments`。
 
-Run:
+### 3. 运行 Testnet 分析
+
+默认不会提交订单：
+
+```powershell
+.\scripts\run_price_action_agent.ps1 -Symbol BTCUSDT -Interval 1h -AdvisorMode heuristic
+```
+
+### 4. 使用基础模型 Agent
+
+配置任意 OpenAI-compatible 接口：
+
+```powershell
+$env:PRICEPILOT_LLM_BASE_URL = "https://your-provider.example/v1"
+$env:PRICEPILOT_LLM_API_KEY = "your_model_key"
+$env:PRICEPILOT_LLM_MODEL = "your_model_name"
+.\scripts\run_price_action_agent.ps1 -Symbol BTCUSDT -AdvisorMode model
+```
+
+模型只能否决或接受确定性候选，风险门禁始终拥有最终决定权。
+
+批量比较基础模型 Agent 与确定性 Advisor：
+
+```powershell
+.\scripts\evaluate_model_agent.ps1 -Symbol BTCUSDT -MaxSamples 20
+```
+
+评测会输出行动一致率、模型否决次数、未授权买入尝试和风险门禁通过次数。
+
+### 5. 验证 Testnet 订单
+
+```powershell
+$env:BINANCE_TESTNET_API_KEY = "your_testnet_key"
+$env:BINANCE_TESTNET_API_SECRET = "your_testnet_secret"
+.\scripts\run_price_action_agent.ps1 -SubmitTestnetOrder
+```
+
+上面的命令调用 Testnet test-order，不创建实际 Testnet 订单。提交实际 Testnet 模拟订单需要额外指定：
+
+```powershell
+.\scripts\run_price_action_agent.ps1 -SubmitTestnetOrder -RealTestnetOrder -Account -OpenOrders
+```
+
+同一决策与执行模式会被本地账本拦截，避免重复提交。
+
+## Freqtrade 验证
+
+需要 Docker：
 
 ```powershell
 .\scripts\bootstrap.ps1
-```
-
-### 2. Review configuration
-
-Open:
-
-- [config/base.spot.json](/E:/Code Repo/PricePilot AI/config/base.spot.json)
-- [config/dryrun.json](/E:/Code Repo/PricePilot AI/config/dryrun.json)
-- [config/live.json](/E:/Code Repo/PricePilot AI/config/live.json)
-
-Adjust:
-
-- pair whitelist
-- stake size
-- port bindings
-- API server credentials
-- timezone
-
-Before live trading, create:
-
-```text
-config/private.live.json
-```
-
-using:
-
-- [config/private.live.template.json](/E:/Code Repo/PricePilot AI/config/private.live.template.json)
-
-### 3. Download data
-
-```powershell
 .\scripts\download_data.ps1
-```
-
-### 4. Run a backtest and generate a report
-
-```powershell
 .\scripts\run_backtest.ps1
-```
-
-This writes:
-
-- raw console output to `reports/backtests`
-- a markdown summary to `reports/backtests`
-- Freqtrade artifacts to `user_data/backtest_results`
-
-### 5. Run parameter tuning
-
-```powershell
-.\scripts\run_hyperopt.ps1
-```
-
-This writes:
-
-- raw hyperopt output to `reports/hyperopt`
-- a markdown hyperopt report to `reports/hyperopt`
-- Freqtrade artifacts to `user_data/hyperopt_results`
-
-### 6. Validate the strategy
-
-```powershell
 .\scripts\validate_strategy.ps1
-```
-
-This runs:
-
-- backtesting
-- lookahead-analysis
-- recursive-analysis
-
-You can also run the full research sequence in one command:
-
-```powershell
-.\scripts\run_research_cycle.ps1
-```
-
-### 7. Start dry-run
-
-```powershell
 .\scripts\run_dry.ps1
 ```
 
-Dry-run API / UI is exposed to localhost only on:
+`validate_strategy.ps1` 会运行回测、lookahead-analysis 与 recursive-analysis。
 
-- `http://127.0.0.1:8080`
+## 当前实验结果
 
-### 8. Generate a daily report
+2026-06-15 使用 Binance 公开行情最近 1000 根 1h 蜡烛进行轻量级走步模拟：
+
+| Symbol | Variant | Trades | Win Rate | Return | Max Drawdown | Profit Factor |
+|---|---:|---:|---:|---:|---:|---:|
+| BTCUSDT | full_price_action | 3 | 0.00% | -0.56% | 0.56% | 0.00 |
+| BTCUSDT | without_risk_gate | 14 | 21.43% | -2.40% | 2.58% | 0.11 |
+| ETHUSDT | full_price_action | 5 | 60.00% | 0.27% | 0.33% | 1.80 |
+| ETHUSDT | without_risk_gate | 13 | 46.15% | -0.93% | 1.81% | 0.60 |
+
+结果表明风险门禁显著减少交易和回撤，但策略效果存在明显跨资产差异，不构成盈利承诺。完整结果位于 `reports/experiments`。
+
+## 作业交付
+
+详细中文课程项目报告位于：
+
+- [reports/course-project-report.md](/E:/Code Repo/PricePilot AI/reports/course-project-report.md)：提交与查看入口。
+- [docs/assignment-report.md](/E:/Code Repo/PricePilot AI/docs/assignment-report.md)：文档目录中的同步副本。
+
+生成最终作业压缩包：
 
 ```powershell
-.\scripts\daily_report.ps1
+.\scripts\package_assignment.ps1
 ```
 
-This reads the dry-run or live SQLite database and creates:
+压缩包写入 `dist`，并排除密钥、执行账本、缓存和本地私有配置。
 
-- markdown reports in `reports/daily`
-- machine-readable JSON summaries in `reports/daily`
+## 目录
 
-### 9. Promote to live
-
-Only after the strategy survives a meaningful dry-run period:
-
-```powershell
-Copy-Item .\config\private.live.template.json .\config\private.live.json
-notepad .\config\private.live.json
-.\scripts\run_live.ps1
+```text
+config/                 Freqtrade 配置
+docs/                   报告、工作流和运行手册
+infra/                  Docker Compose
+reports/experiments/    消融实验结果
+scripts/                Agent、实验、报告和运行脚本
+tests/                  自动化测试
+user_data/strategies/   严格价格行为策略与基线策略
 ```
 
-Live API / UI is bound to:
+## 风险声明
 
-- `http://127.0.0.1:8081`
-
-## Recommended Workflow
-
-1. Download `15m`, `1h`, and `4h` data
-2. Backtest on in-sample data and archive the report
-3. Hyperopt with constrained spaces only
-4. Re-backtest without optimization leakage
-5. Run lookahead-analysis
-6. Run recursive-analysis
-7. Run dry-run for at least 14 days
-8. Generate daily reports during dry-run
-9. Compare dry-run behavior to backtest assumptions
-10. Deploy tiny live capital
-
-## Safety Rules
-
-- Start with `dry_run` only
-- Do not enable leverage or futures in this repository
-- Use a dedicated Binance API key
-- Restrict the key to the minimum permissions required
-- Keep REST/FreqUI on `127.0.0.1`
-- Never commit `config/private.live.json`
-- Run live with capital you can fully afford to lose
-
-## Notes
-
-- The strategy is intentionally conservative and low-frequency. It is closer to a real spot deployment baseline than the initial simple trend example, but it is still not an alpha guarantee.
-- Binance Spot Testnet exists, but this scaffold defaults to dry-run because that is the cleaner first validation stage for Freqtrade.
-- Hyperopt should be treated as model selection support, not as proof that a parameter set is robust.
-- No profitability claim is implied by this project structure.
-
-## Branching
-
-- `main`: stable baseline branch for reviewed work
-- `dev`: integration branch for ongoing implementation and experiments
-
-Follow [docs/git-workflow.md](/E:/Code Repo/PricePilot AI/docs/git-workflow.md) as the fixed branch workflow for this repository.
-
-Use [docs/repository-files.md](/E:/Code Repo/PricePilot AI/docs/repository-files.md) as the file-level reference for the repository.
+本项目用于研究、课程作业、回测、Dry-run 与 Binance Spot Testnet。量化策略可能亏损，历史或模拟结果不能保证未来表现。

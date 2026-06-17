@@ -1,75 +1,75 @@
-# Research Workflow
+# PricePilot AI 研究与验证流程
 
-## Goal
+## 目标
 
-This workflow is designed to keep strategy research reproducible and operationally sane.
+验证严格价格行为策略是否可复现、是否存在未来数据问题，以及 Agent 和风险门禁是否遵守安全边界。
 
-It covers:
+## 建议顺序
 
-- historical data preparation
-- backtesting
-- hyperparameter optimization
-- bias validation
-- dry-run review
-- daily reporting
+### 1. 自动化测试
 
-## Recommended Order
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
 
-1. Download data
-2. Run backtest and archive the report
-3. Run constrained hyperopt
-4. Re-backtest the selected parameter set
-5. Run lookahead-analysis
-6. Run recursive-analysis
-7. Start dry-run
-8. Generate daily reports
-9. Review for promotion to live
+### 2. 独立走步与消融实验
 
-## Commands
+```powershell
+.\scripts\run_price_action_experiment.ps1
+```
 
-### Download data
+该实验比较完整价格行为策略、结构突破、蜡烛形态和移除风险门禁等变体。结果写入 `reports/experiments`。
+
+### 3. Freqtrade 历史数据
 
 ```powershell
 .\scripts\download_data.ps1 -Timerange 20230101-
 ```
 
-### Backtest
+### 4. Freqtrade 回测
 
 ```powershell
 .\scripts\run_backtest.ps1 -Timerange 20230101-
 ```
 
-### Hyperopt
-
-```powershell
-.\scripts\run_hyperopt.ps1 -Timerange 20230101- -Epochs 200
-```
-
-### Validation
+### 5. 偏差验证
 
 ```powershell
 .\scripts\validate_strategy.ps1 -Timerange 20230101-
 ```
 
-### Daily dry-run report
+必须检查：
+
+- lookahead-analysis
+- recursive-analysis
+- 样本内与样本外表现
+- 手续费和滑点敏感性
+- 交易数量、最大回撤、Profit Factor 和 Expectancy
+
+### 6. Agent 分析与 Testnet
 
 ```powershell
-.\scripts\daily_report.ps1 -Mode dryrun
+.\scripts\run_price_action_agent.ps1 -AdvisorMode heuristic
 ```
 
-## Research Rules
+配置模型后：
 
-- Keep optimization spaces narrow
-- Never promote parameters directly from a single hyperopt run without re-backtesting
-- Compare in-sample and out-of-sample results
-- Review monthly and daily breakdowns, not just total profit
-- Reject parameter sets that only improve through lower trade count or unstable behavior
+```powershell
+.\scripts\run_price_action_agent.ps1 -AdvisorMode model
+.\scripts\evaluate_model_agent.ps1 -Symbol BTCUSDT -MaxSamples 20
+```
 
-## Suggested Timerange Split
+只有在风险门禁批准后才验证 Testnet test-order：
 
-Example:
+```powershell
+.\scripts\run_price_action_agent.ps1 -SubmitTestnetOrder
+```
 
-- in-sample: `20230101-20241231`
-- out-of-sample: `20250101-20260331`
+## 研究规则
 
-Use the same strategy and pair universe across both runs unless you are intentionally testing a structural change.
+- 不因单一交易对或单一时间段盈利就宣称策略有效。
+- 不只报告胜率。
+- 不对同一份样本反复调参后将结果当作样本外表现。
+- 模型 Advisor 与确定性 Advisor 应分别记录。
+- 模型输出不能改变结构失效位、最大损失或重复执行门禁。
+- 正式进入 Dry-run 前必须通过 lookahead 与 recursive analysis。

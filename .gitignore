@@ -20,6 +20,12 @@ reports/hyperopt/*
 !reports/hyperopt/.gitkeep
 reports/daily/*
 !reports/daily/.gitkeep
+reports/agent/*
+!reports/agent/.gitkeep
+reports/experiments/*
+!reports/experiments/.gitkeep
+dist/
 scripts/__pycache__/
 user_data/strategies/__pycache__/
+tests/__pycache__/
 *.pyc
