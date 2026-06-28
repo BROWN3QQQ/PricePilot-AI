@@ -14,6 +14,10 @@ This repository is set up for the workflow:
 
 The implementation intentionally stays close to official Freqtrade behavior instead of building a custom order engine.
 
+## Development Check
+
+- 2026-06-29: Cloned into the Codex workspace and confirmed `dev` as the starting branch for vibe coding.
+
 ## Scope
 
 - Exchange: `binance` spot
